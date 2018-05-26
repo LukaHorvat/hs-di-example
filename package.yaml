@@ -27,8 +27,7 @@ dependencies:
 - text
 - time
 - base
-- hs-di
-- interpolatedstring-perl6
+- simple-effects
 
 library:
   source-dirs: library

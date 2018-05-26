@@ -1,14 +1,14 @@
 module HsDiExample.MainSpec where
 
-import            DI                        (assemble, override)
-import            Data.Time                 (UTCTime, utctDay, addUTCTime)
-import            Test.Hspec
-import            Data.IORef                (newIORef, modifyIORef, readIORef, IORef)
-import            Data.Function             ((&))
-import            HsDiExample.Main          (mainD, mainT)
-import            Data.Functor.Identity     (runIdentity)
-import            Data.Time.Clock.POSIX     (posixSecondsToUTCTime)
-import            Text.InterpolatedString.Perl6 (qc)
+import Data.Time (UTCTime, utctDay, addUTCTime)
+import Test.Hspec
+import Data.IORef (newIORef, modifyIORef, readIORef, IORef)
+import Data.Function ((&))
+import HsDiExample.Main
+import Data.Functor.Identity (runIdentity)
+import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
+import Control.Effects
+import Control.Monad.IO.Class
 
 spec :: Spec
 spec = describe "main" $ do
@@ -17,12 +17,11 @@ spec = describe "main" $ do
     logs <- newIORef []
     clockStart <- newIORef $ posixSecondsToUTCTime 0
 
-    $(mainD
-      & override "logger"         [qc| \a -> modifyIORef logs (++ [a]) |]
-      & override "getArgs"        [qc| return ["sample.txt"] |]
-      & override "readFile"       [qc| \"sample.txt" -> return "Alyssa" |]
-      & override "getCurrentTime" [qc| readModifyIORef clockStart (addUTCTime 1) |]
-      & assemble)
+    main
+      & implement (LoggingMethods (\a -> liftIO $ modifyIORef logs (++ [a])))
+      & implement (ArgsMethods (return ["sample.txt"]))
+      & implement (FileMethods (\"sample.txt" -> return "Alyssa"))
+      & implement (CurrentTimeMethods (readModifyIORef clockStart (addUTCTime 1)))
 
     readIORef logs
 

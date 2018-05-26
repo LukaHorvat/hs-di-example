@@ -1,29 +1,48 @@
+{-# LANGUAGE TypeFamilies, DeriveGeneric, FlexibleContexts, PartialTypeSignatures #-}
 module HsDiExample.Main where
 
-import            DI
-import            Prelude                   hiding (readFile)
-import            Data.Time                 (getCurrentTime, diffUTCTime)
-import qualified  Data.Text                 as T
-import qualified  Data.Text.IO              as T
-import            Data.Text.IO              (readFile)
-import            Data.Semigroup            ((<>))
-import            System.Environment        (getArgs)
+import Prelude hiding (readFile)
+import GHC.Generics
+import Data.Time (UTCTime, diffUTCTime)
+import Data.Text (Text, pack)
+import Data.Semigroup ((<>))
+import Control.Effects
 
-injLeaf "getCurrentTime"
-injLeaf "getArgs"
-injLeaf "readFile"
+data CurrentTime
+instance Effect CurrentTime where
+    data EffMethods CurrentTime m = CurrentTimeMethods
+        { _getCurrentTime :: m UTCTime }
+        deriving (Generic)
+CurrentTimeMethods getCurrentTime = effect
 
-injAllG
+data Args
+instance Effect Args where
+    data EffMethods Args m = ArgsMethods
+        { _getArgs :: m [String] }
+        deriving (Generic)
+ArgsMethods getArgs = effect
 
-logger :: T.Text -> IO ()
-loggerI = T.putStrLn
+data File
+instance Effect File where
+    data EffMethods File m = FileMethods
+        { _readFile :: String -> m Text }
+        deriving (Generic)
+FileMethods readFile = effect
 
-main :: IO ()
-mainI getCurrentTime getArgs readFile logger = do
+data Logging
+instance Effect Logging where
+    data EffMethods Logging m = LoggingMethods
+        { _logInfo :: Text -> m () }
+        deriving (Generic)
+LoggingMethods logInfo = effect
+
+main :: _ => m () -- I usually use partial signatures
+-- main :: MonadEffects '[Logging, Args, File, CurrentTime] m => m () -- but you can do this instead
+main = do
   startTime <- getCurrentTime
   [fileName] <- getArgs
   target <- readFile fileName
-  logger $ "Hello, " <> target <> "!"
+  logInfo $ "Hello, " <> target <> "!"
   endTime <- getCurrentTime
   let duration = endTime `diffUTCTime` startTime
-  logger $ T.pack (show (round (duration * 1000) :: Integer)) <> " milliseconds"
+  logInfo $ pack (show (round (duration * 1000) :: Integer)) <> " milliseconds"
